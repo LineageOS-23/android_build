@@ -2642,16 +2642,6 @@ RECOVERY_ERROR_TEXT_FILE :=
 RECOVERY_NO_COMMAND_TEXT_FILE :=
 endif # TARGET_RECOVERY_UI_SCREEN_WIDTH
 
-ifneq ($(TARGET_RECOVERY_DEVICE_DIRS),)
-recovery_root_private := $(strip \
-  $(foreach d,$(TARGET_RECOVERY_DEVICE_DIRS), $(wildcard $(d)/recovery/root)))
-else
-recovery_root_private := $(strip $(wildcard $(TARGET_DEVICE_DIR)/recovery/root))
-endif
-ifneq ($(recovery_root_private),)
-recovery_root_deps := $(shell find $(recovery_root_private) -type f)
-endif
-
 ifndef TARGET_PRIVATE_RES_DIRS
 TARGET_PRIVATE_RES_DIRS := $(wildcard $(TARGET_DEVICE_DIR)/recovery/res)
 endif
@@ -2818,7 +2808,7 @@ $(INTERNAL_RECOVERY_RAMDISK_FILES_TIMESTAMP): $(MKBOOTFS) \
 	    $(INSTALLED_2NDBOOTLOADER_TARGET) \
 	    $(INSTALLED_RECOVERY_BUILD_PROP_TARGET) \
 	    $(INSTALLED_RECOVERY_RAMDISK_BUILD_PROP_TARGET) \
-	    $(recovery_resource_deps) $(recovery_root_deps) \
+	    $(recovery_resource_deps) \
 	    $(recovery_fstab)
 	# Making recovery image
 	mkdir -p $(TARGET_RECOVERY_OUT)
@@ -2837,8 +2827,6 @@ $(INTERNAL_RECOVERY_RAMDISK_FILES_TIMESTAMP): $(MKBOOTFS) \
 	$(foreach recovery_text_file,$(generated_recovery_text_files), \
 	  cp -rf $(recovery_text_file) $(TARGET_RECOVERY_ROOT_OUT)/res/images/ &&) true
 	cp -f $(recovery_font) $(TARGET_RECOVERY_ROOT_OUT)/res/images/font.png
-	$(foreach item,$(recovery_root_private), \
-	  cp -rf $(item) $(TARGET_RECOVERY_OUT)/;)
 	$(foreach item,$(TARGET_PRIVATE_RES_DIRS), \
 	  cp -rf $(item) $(TARGET_RECOVERY_ROOT_OUT)/$(newline);)
 	$(foreach item,$(recovery_fstab), \
@@ -2955,12 +2943,12 @@ ifneq ($(BOARD_NAND_SPARE_SIZE),)
 $(error MTD device is no longer supported and thus BOARD_NAND_SPARE_SIZE is deprecated.)
 endif
 
-recovery_intermediates := $(call intermediates-dir-for,PACKAGING,recovery)
-$(eval $(call write-partition-file-list,$(recovery_intermediates)/file_list.txt,$(TARGET_RECOVERY_OUT),$(INTERNAL_RECOVERYIMAGE_FILES)))
-
 ifdef BOARD_CUSTOM_BOOTIMG_MK
 include $(BOARD_CUSTOM_BOOTIMG_MK)
 endif
+
+recovery_intermediates := $(call intermediates-dir-for,PACKAGING,recovery)
+$(eval $(call write-partition-file-list,$(recovery_intermediates)/file_list.txt,$(TARGET_RECOVERY_OUT),$(INTERNAL_RECOVERYIMAGE_FILES)))
 
 # -----------------------------------------------------------------
 # Build debug ramdisk and debug boot image.
@@ -6213,7 +6201,7 @@ ifneq ($(BOARD_PARTIAL_OTA_UPDATE_PARTITIONS_LIST),)
 	$(hide) echo "partial_ota_update_partitions_list=$(BOARD_PARTIAL_OTA_UPDATE_PARTITIONS_LIST)" >> $@
 endif
 ifneq ($(TARGET_OTA_ASSERT_DEVICE),)
-        $(hide) echo "ota_override_device=$(TARGET_OTA_ASSERT_DEVICE)" >> $@
+	$(hide) echo "ota_override_device=$(TARGET_OTA_ASSERT_DEVICE)" >> $@
 endif
 	$(hide) sort -o $@ $@
 
@@ -7178,7 +7166,6 @@ PATH=$(INTERNAL_USERIMAGES_BINARY_PATHS):$(dir $(ZIP2ZIP)):$$PATH \
     $(OTA_FROM_TARGET_FILES) \
         --verbose \
         --path $(HOST_OUT) \
-        --backup=$(backuptool) \
         $(if $(OEM_OTA_CONFIG), --oem_settings $(OEM_OTA_CONFIG)) \
         $(if $(BOOT_VAR_OTA_CONFIG), --boot_variable_file $(BOOT_VAR_OTA_CONFIG)) \
         $(2) \
@@ -7195,16 +7182,6 @@ INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
 INTERNAL_OTA_METADATA := $(PRODUCT_OUT)/ota_metadata
 
 $(call declare-0p-target,$(INTERNAL_OTA_METADATA))
-
-ifeq ($(TARGET_BUILD_VARIANT),user)
-    $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
-else
-ifneq ($(LINEAGE_BUILD),)
-    $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := true
-else
-    $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
-endif
-endif
 
 $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
 $(INTERNAL_OTA_PACKAGE_TARGET): .KATI_IMPLICIT_OUTPUTS := $(INTERNAL_OTA_METADATA)
@@ -8056,8 +8033,8 @@ include $(sort $(wildcard $(BUILD_SYSTEM)/tasks/*.mk))
 -include $(sort $(wildcard device/*/*/build/tasks/*.mk))
 -include $(sort $(wildcard product/*/*/build/tasks/*.mk))
 # Also add test specifc tasks
-include $(sort $(wildcard platform_testing/build/tasks/*.mk))
-include $(sort $(wildcard test/vts/tools/build/tasks/*.mk))
+#include $(sort $(wildcard platform_testing/build/tasks/*.mk))
+#include $(sort $(wildcard test/vts/tools/build/tasks/*.mk))
 endif
 
 include $(BUILD_SYSTEM)/product-graph.mk

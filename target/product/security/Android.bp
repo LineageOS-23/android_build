@@ -47,5 +47,4 @@ otacerts_zip {
 adb_keys {
     name: "adb_keys",
     product_specific: true,
-    recovery_available: true,
 }
